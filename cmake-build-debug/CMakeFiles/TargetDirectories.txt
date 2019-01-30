@@ -1,3 +1,0 @@
-/home/arneish/Desktop/Parallel/parallel-k-means/cmake-build-debug/CMakeFiles/rebuild_cache.dir
-/home/arneish/Desktop/Parallel/parallel-k-means/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home/arneish/Desktop/Parallel/parallel-k-means/cmake-build-debug/CMakeFiles/parallel_k_means.dir

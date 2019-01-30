@@ -1,1 +1,0 @@
-/usr/bin/c++  -g   CMakeFiles/parallel_k_means.dir/main.cpp.o  -o parallel_k_means 
