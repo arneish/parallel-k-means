@@ -1,7 +1,10 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <math.h>
 
+float* cluster_count;
 void *functionC();
 pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
 int counter = 0;
@@ -22,10 +25,15 @@ void fun2(int * num)
     printf("fun2:%d\n", num[0]);
 }
 
+
+
 main()
 {
-    int num = 5;
-    fun2(&num);
+    cluster_count=(float*)malloc(10*sizeof(float));
+    for (int i =0;i <10; i++)
+    {
+        printf("%f,",cluster_count[i]);
+    }
     // int i = 0;
     // int *array = (int *)malloc(sizeof(int) * 10);
     // for (i = 0; i < 10; i++)
