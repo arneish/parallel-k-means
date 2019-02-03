@@ -52,6 +52,6 @@ void clusters_out (const char* cluster_filename, int N, int* cluster_points);
 	cent1_it2_x cent1_it2_y cent1_it2_z, cent2_it2_x cent2_it2_y cent2_it2_z,
 	cent1_it3_x cent1_it3_y cent1_it3_z, cent2_it3_x cent2_it3_y cent2_it3_z,
 */
-void centroids_out (const char* centroid_filename, int K, int num_iterations, int* centroids);
+void centroids_out (const char* centroid_filename, int K, int num_iterations, float* centroids);
 
 #endif

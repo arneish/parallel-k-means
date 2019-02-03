@@ -11,15 +11,10 @@ int counter = 0;
 
 int* array_global;
 void fun(int *a){
-    array_global = a+1;
-    printf("function print\n");
-    for (int i=0;i<10; i++)
-    {
-        printf("%d, ", array_global[i]);
-    } 
-    printf("\n");
+    printf("a:%d, ", *a);
+    int b = *a+1;
+    printf("a':%d", b);
 }
-
 void fun2(int * num)
 {
     printf("fun2:%d\n", num[0]);
@@ -29,11 +24,9 @@ void fun2(int * num)
 
 main()
 {
-    cluster_count=(float*)malloc(10*sizeof(float));
-    for (int i =0;i <10; i++)
-    {
-        printf("%f,",cluster_count[i]);
-    }
+    int a = 10;  
+    fun(&a);
+    
     // int i = 0;
     // int *array = (int *)malloc(sizeof(int) * 10);
     // for (i = 0; i < 10; i++)
