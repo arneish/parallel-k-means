@@ -22,7 +22,12 @@ float *centroids_global;
 int *data_point_cluster_global;
 int **cluster_count_global;
 
-pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
+#ifdef USE_SPINLOCK
+pthread_spinlock_t spinlock;
+#else
+pthread_mutex_t mutex1;
+#endif
+
 pthread_barrier_t centroid_update_barrier;
 
 void *kmeans_assignment_thread(void *tid)
@@ -80,8 +85,12 @@ void *kmeans_assignment_thread(void *tid)
             printf("Thread %d returning\n", *id);
             return NULL;
         }
-        //write cluster_location to centroids_global and cluster_count_global
+//write cluster_location to centroids_global and cluster_count_global
+#ifdef USE_SPINLOCK
+        pthread_spin_lock(&spinlock);
+#else
         pthread_mutex_lock(&mutex1);
+#endif
         for (i = 0; i < K_global; i++)
         {
             if (cluster_count_global[iter_counter][i] + cluster_count[i] == 0)
@@ -102,7 +111,11 @@ void *kmeans_assignment_thread(void *tid)
                 (centroids_global[((iter_counter + 1) * K_global + i) * 3 + 2] * cluster_count_global[iter_counter][i] + cluster_location[i * 3 + 2]) / (float)(cluster_count_global[iter_counter][i] + cluster_count[i]);
             cluster_count_global[iter_counter][i] += cluster_count[i];
         }
+#ifdef USE_SPINLOCK
+        pthread_spin_unlock(&spinlock);
+#else
         pthread_mutex_unlock(&mutex1);
+#endif
         pthread_barrier_wait(&centroid_update_barrier);
         // if (*id == 0)
         // {
@@ -158,6 +171,12 @@ void kmeans_pthread(int num_threads,
     }
     /*Creating threads:*/
     pthread_t kmeans_thread[num_threads];
+/*Locks init:*/
+#ifdef USE_SPINLOCK
+    pthread_spin_init(&spinlock, 0);
+#else
+    pthread_mutex_init(&mutex1, NULL);
+#endif
     pthread_barrier_init(&centroid_update_barrier, NULL, num_threads);
     int *tid = (int *)malloc(sizeof(int) * num_threads);
     int *iret = (int *)malloc(sizeof(int) * num_threads);
@@ -175,6 +194,11 @@ void kmeans_pthread(int num_threads,
     {
         pthread_join(kmeans_thread[i], NULL);
     }
+#ifdef USE_SPINLOCK
+    pthread_spin_destroy(&spinlock);
+#else
+    pthread_mutex_destroy(&mutex1);
+#endif
     pthread_barrier_destroy(&centroid_update_barrier);
     /*Printing final centroids:*/
     for (i = 0; i < K; i++)
