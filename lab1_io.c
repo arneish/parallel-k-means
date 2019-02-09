@@ -19,7 +19,6 @@ void dataset_in(const char *dataset_filename, int *N, int **data_points)
 void clusters_out(const char *cluster_filename, int N, int *cluster_points)
 {
 	FILE *fout = fopen(cluster_filename, "w");
-
 	for (int i = 0; i < N; i++)
 	{
 		fprintf(fout, "%d %d %d %d\n",

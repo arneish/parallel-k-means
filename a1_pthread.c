@@ -33,7 +33,6 @@ pthread_mutex_t mutex1;
 
 pthread_barrier_t centroid_update_barrier;
 pthread_barrier_t delta_check_barrier;
-
 void *kmeans_assignment_thread(void *tid)
 {
     int *id = (int *)tid;

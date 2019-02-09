@@ -15,24 +15,26 @@
 
 int main(int argc, char const *argv[])
 {
-	if (argc < 6){
+	if (argc < 6)
+	{
 		printf("\nLess Arguments\n");
 		return 0;
 	}
 
-	if (argc > 6){
+	if (argc > 6)
+	{
 		printf("\nTOO many Arguments\n");
 		return 0;
 	}
 
 	//---------------------------------------------------------------------
-	int N;					//no. of data points (input)
-	int K;					//no. of clusters to be formed (input)
-	int num_threads;		//no. of threads to be used (input)
-	int* data_points;		//data points (input)
-	int* cluster_points;	//clustered data points (to be computed)
-	float* centroids;			//centroids of each iteration (to be computed)
-	int num_iterations;    //no of iterations performed by algo (to be computed)
+	int N;				 //no. of data points (input)
+	int K;				 //no. of clusters to be formed (input)
+	int num_threads;	 //no. of threads to be used (input)
+	int *data_points;	//data points (input)
+	int *cluster_points; //clustered data points (to be computed)
+	float *centroids;	//centroids of each iteration (to be computed)
+	int num_iterations;  //no of iterations performed by algo (to be computed)
 	//---------------------------------------------------------------------
 
 	double start_time, end_time;
@@ -49,7 +51,7 @@ int main(int argc, char const *argv[])
 		| pt1_x | pt1_y | pt1_z | pt2_x | pt2_y | pt2_z | ...
 		 -----------------------------------------------
 	*/
-	dataset_in (argv[3], &N, &data_points);
+	dataset_in(argv[3], &N, &data_points);
 
 	start_time = omp_get_wtime();
 	// /*
@@ -64,11 +66,11 @@ int main(int argc, char const *argv[])
 	// 	-- Pre-defined function --
 	// 	reads cluster_points and centroids and save it it appropriate files
 	// */
-	clusters_out (argv[4], N, cluster_points);
-	centroids_out (argv[5], K, num_iterations, centroids);
+	clusters_out(argv[4], N, cluster_points);
+	centroids_out(argv[5], K, num_iterations, centroids);
 
-	computation_time = end_time-start_time;//((double) (end_time - start_time)) / CLOCKS_PER_SEC;
+	computation_time = end_time - start_time; //((double) (end_time - start_time)) / CLOCKS_PER_SEC;
 	printf("Time Taken: %lf \n", computation_time);
-	
+
 	return 0;
 }

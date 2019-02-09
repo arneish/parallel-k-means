@@ -1,5 +1,6 @@
 #include "lab1_io.h"
 #include "lab1_omp.h"
+#include <omp.h>
 #include <stdlib.h>
 #include <time.h>
 #include <limits.h>
@@ -176,7 +177,6 @@ void kmeans_omp(int num_threads,
         int ID = omp_get_thread_num();
         printf("Thread: %d created!\n", ID);
         kmeans_openmp_thread(&ID);
-        printf("Thread: %d exiting!\n", ID);
     }
 
     /*Record *num_iterations & write values to centroids from centroids_global:*/
@@ -189,13 +189,6 @@ void kmeans_omp(int num_threads,
         (*centroids)[i] = centroids_global[i];
     }
 
-#ifdef USE_SPINLOCK
-    pthread_spin_destroy(&spinlock);
-#else
-    pthread_mutex_destroy(&mutex1);
-#endif
-    pthread_barrier_destroy(&centroid_update_barrier);
-    pthread_barrier_destroy(&delta_check_barrier);
     /*Printing final centroids:*/
     for (i = 0; i < K; i++)
     {
