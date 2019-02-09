@@ -8,6 +8,8 @@
 #include <math.h>
 #include <assert.h>
 
+#define MAX_ITER 100
+#define THRESHOLD 1e-6
 #define min(a, b) \
     ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
@@ -16,6 +18,7 @@
 int num_points_global;
 int num_threads_global;
 int num_iterations_global;
+double delta_global = THRESHOLD + 1;
 int K_global;
 int *data_points_global;
 float *centroids_global;
@@ -29,13 +32,20 @@ pthread_mutex_t mutex1;
 #endif
 
 pthread_barrier_t centroid_update_barrier;
+pthread_barrier_t delta_check_barrier;
 
 void *kmeans_assignment_thread(void *tid)
 {
     int *id = (int *)tid;
     int length_per_thread = num_points_global / num_threads_global;
     int start = (*id) * length_per_thread;
-    int range = min(start + length_per_thread, num_points_global);
+    int range = start + length_per_thread;
+    if (range + length_per_thread > num_points_global)
+    {
+        //assign last undistributed points to this thread for computation
+        range = num_points_global;
+        length_per_thread = num_points_global - start;
+    }
     printf("Thread ID:%d, start:%d, range:%d\n", *id, start, range);
     int i = 0, j = 0;
     double min_dist, current_dist;
@@ -43,7 +53,7 @@ void *kmeans_assignment_thread(void *tid)
     float *cluster_location = (float *)malloc(K_global * 3 * sizeof(float));
     int *cluster_count = (int *)malloc(K_global * sizeof(int));
     int iter_counter = 0;
-    while (iter_counter < num_iterations_global + 1) //+1 is for the last assignment to cluster centroids (from previous iter)
+    while ((delta_global > THRESHOLD) && (iter_counter < MAX_ITER)) //+1 is for the last assignment to cluster centroids (from previous iter)
     {
         for (i = 0; i < K_global * 3; i++)
             cluster_location[i] = 0.0;
@@ -64,26 +74,12 @@ void *kmeans_assignment_thread(void *tid)
                     point_to_cluster[i - start] = j;
                 }
             }
-            if (iter_counter == num_iterations_global)
-            {
-                //assign points to clusters
-                data_point_cluster_global[i * 4] = data_points_global[i * 3];
-                data_point_cluster_global[i * 4 + 1] = data_points_global[i * 3 + 1];
-                data_point_cluster_global[i * 4 + 2] = data_points_global[i * 3 + 2];
-                data_point_cluster_global[i * 4 + 3] = point_to_cluster[i - start];
-                assert(point_to_cluster[i - start] >= 0 && point_to_cluster[i - start] < K_global);
-                continue;
-            }
+
             //add to local cluster_loc coordinates
             cluster_count[point_to_cluster[i - start]] += 1;
             cluster_location[point_to_cluster[i - start] * 3] += (float)data_points_global[i * 3];
             cluster_location[point_to_cluster[i - start] * 3 + 1] += (float)data_points_global[i * 3 + 1];
             cluster_location[point_to_cluster[i - start] * 3 + 2] += (float)data_points_global[i * 3 + 2];
-        }
-        if (iter_counter == num_iterations_global)
-        {
-            printf("Thread %d returning\n", *id);
-            return NULL;
         }
 //write cluster_location to centroids_global and cluster_count_global
 #ifdef USE_SPINLOCK
@@ -93,18 +89,13 @@ void *kmeans_assignment_thread(void *tid)
 #endif
         for (i = 0; i < K_global; i++)
         {
-            if (cluster_count_global[iter_counter][i] + cluster_count[i] == 0)
+            if (cluster_count[i] == 0)
             {
                 printf("Unlikely situation!\n");
-                centroids_global[((iter_counter + 1) * K_global + i) * 3] = centroids_global[(iter_counter * K_global + i) * 3];
-                centroids_global[((iter_counter + 1) * K_global + i) * 3 + 1] = centroids_global[(iter_counter * K_global + i) * 3 + 1];
-                centroids_global[((iter_counter + 1) * K_global + i) * 3 + 2] = centroids_global[(iter_counter * K_global + i) * 3 + 2];
                 continue;
             }
             centroids_global[((iter_counter + 1) * K_global + i) * 3] =
                 (centroids_global[((iter_counter + 1) * K_global + i) * 3] * cluster_count_global[iter_counter][i] + cluster_location[i * 3]) / (float)(cluster_count_global[iter_counter][i] + cluster_count[i]);
-            // printf("nr: %f\n", centroids_global[iter_counter + 1][i * 3] * cluster_count_global[iter_counter][i] + cluster_location[i * 3]);
-            // printf("here cluster_count[i]:%f, %d\n", centroids_global[iter_counter+1][i*3], cluster_count[i]);
             centroids_global[((iter_counter + 1) * K_global + i) * 3 + 1] =
                 (centroids_global[((iter_counter + 1) * K_global + i) * 3 + 1] * cluster_count_global[iter_counter][i] + cluster_location[i * 3 + 1]) / (float)(cluster_count_global[iter_counter][i] + cluster_count[i]);
             centroids_global[((iter_counter + 1) * K_global + i) * 3 + 2] =
@@ -116,17 +107,43 @@ void *kmeans_assignment_thread(void *tid)
 #else
         pthread_mutex_unlock(&mutex1);
 #endif
+        printf("centroid barrier-approached thread-ID:%d\n", *id);
         pthread_barrier_wait(&centroid_update_barrier);
-        // if (*id == 0)
-        // {
-        //     printf("\n");
-        //     for (i = 0; i < K_global; i++)
-        //     {
-        //         printf("thread 0's print of centroid #%d: %f,%f,%f\n", i + 1, centroids_global[((iter_counter + 1) * K_global + i) * 3], centroids_global[((iter_counter + 1) * K_global + i) * 3 + 1], centroids_global[((iter_counter + 1) * K_global + i) * 3 + 2]);
-        //     }
-        // }
-        //printf("centroid-update barrier crossed for thread:%d\n", *id);
+        if (*id == 0)
+        {
+            printf("\n");
+            for (i = 0; i < K_global; i++)
+            {
+                printf("thread 0's print of centroid #%d: %f,%f,%f\n", i + 1, centroids_global[((iter_counter + 1) * K_global + i) * 3], centroids_global[((iter_counter + 1) * K_global + i) * 3 + 1], centroids_global[((iter_counter + 1) * K_global + i) * 3 + 2]);
+            }
+        }
+        /*Convergence check: Sum of L2-norms over every cluster*/
+        if (*id == 0)
+        {
+            double temp_delta = 0.0;
+            for (i = 0; i < K_global; i++)
+            {
+                temp_delta += (centroids_global[((iter_counter + 1) * K_global + i) * 3] - centroids_global[((iter_counter)*K_global + i) * 3]) * (centroids_global[((iter_counter + 1) * K_global + i) * 3] - centroids_global[((iter_counter)*K_global + i) * 3]) + (centroids_global[((iter_counter + 1) * K_global + i) * 3 + 1] - centroids_global[((iter_counter)*K_global + i) * 3 + 1]) * (centroids_global[((iter_counter + 1) * K_global + i) * 3 + 1] - centroids_global[((iter_counter)*K_global + i) * 3 + 1]) + (centroids_global[((iter_counter + 1) * K_global + i) * 3 + 2] - centroids_global[((iter_counter)*K_global + i) * 3 + 2]) * (centroids_global[((iter_counter + 1) * K_global + i) * 3 + 2] - centroids_global[((iter_counter)*K_global + i) * 3 + 2]);
+            }
+            delta_global = temp_delta;
+            printf("Thread-id:%d delta_global:%f\n", *id, delta_global);
+            num_iterations_global++;
+        }
+        printf("DELTA-CHECK barrier-approached thread-ID:%d\n", *id);
+        pthread_barrier_wait(&delta_check_barrier);
         iter_counter++;
+    }
+    printf("Thread:%d iter-count:%d\n", *id, iter_counter);
+
+    /*Assign points to final choice for cluster centroids:*/
+    for (i = start; i < range; i++)
+    {
+        //assign points to clusters
+        data_point_cluster_global[i * 4] = data_points_global[i * 3];
+        data_point_cluster_global[i * 4 + 1] = data_points_global[i * 3 + 1];
+        data_point_cluster_global[i * 4 + 2] = data_points_global[i * 3 + 2];
+        data_point_cluster_global[i * 4 + 3] = point_to_cluster[i - start];
+        assert(point_to_cluster[i - start] >= 0 && point_to_cluster[i - start] < K_global);
     }
 }
 
@@ -142,30 +159,29 @@ void kmeans_pthread(int num_threads,
     int i = 0;
     num_points_global = N;
     num_threads_global = num_threads;
-    num_iterations_global = *num_iterations;
+    num_iterations_global = 0;
     K_global = K;
     data_points_global = data_points;
     /*Allocating space for data_points_cluster:*/
     *data_point_cluster = (int *)malloc(N * 4 * sizeof(int));
     data_point_cluster_global = *data_point_cluster;
     /*Allocating space for centroids:*/
-    *centroids = (float *)calloc((*num_iterations + 1) * K * 3, sizeof(float));
-    centroids_global = *centroids;
+    centroids_global = (float *)calloc((MAX_ITER + 1) * K * 3, sizeof(float));
     /*Assigning first K points to be initial centroids:*/
     for (i = 0; i < K; i++)
     {
-        (*centroids)[i * 3] = data_points[i * 3];
-        (*centroids)[i * 3 + 1] = data_points[i * 3 + 1];
-        (*centroids)[i * 3 + 2] = data_points[i * 3 + 2];
+        centroids_global[i * 3] = data_points[i * 3];
+        centroids_global[i * 3 + 1] = data_points[i * 3 + 1];
+        centroids_global[i * 3 + 2] = data_points[i * 3 + 2];
     }
     /*Printing initial centroids:*/
     for (i = 0; i < K; i++)
     {
-        printf("initial centroid #%d: %f,%f,%f\n", i + 1, (*centroids)[i * 3], (*centroids)[i * 3 + 1], (*centroids)[i * 3 + 2]);
+        printf("initial centroid #%d: %f,%f,%f\n", i + 1, centroids_global[i * 3], centroids_global[i * 3 + 1], centroids_global[i * 3 + 2]);
     }
     /*Allocating space for cluster_count_global:*/
-    cluster_count_global = (int **)malloc(*num_iterations * sizeof(int *));
-    for (i = 0; i < *num_iterations; i++)
+    cluster_count_global = (int **)malloc(MAX_ITER * sizeof(int *));
+    for (i = 0; i < MAX_ITER; i++)
     {
         cluster_count_global[i] = (int *)calloc(K, sizeof(int));
     }
@@ -178,6 +194,7 @@ void kmeans_pthread(int num_threads,
     pthread_mutex_init(&mutex1, NULL);
 #endif
     pthread_barrier_init(&centroid_update_barrier, NULL, num_threads);
+    pthread_barrier_init(&delta_check_barrier, NULL, num_threads);
     int *tid = (int *)malloc(sizeof(int) * num_threads);
     int *iret = (int *)malloc(sizeof(int) * num_threads);
     for (i = 0; i < num_threads; i++)
@@ -194,12 +211,24 @@ void kmeans_pthread(int num_threads,
     {
         pthread_join(kmeans_thread[i], NULL);
     }
+
+    /*Record *num_iterations & write values to centroids from centroids_global:*/
+    *num_iterations = num_iterations_global;
+    int centroids_size = (*num_iterations + 1) * K * 3;
+    printf("centroids_size:%d\n", centroids_size);
+    *centroids = (float *)calloc(centroids_size, sizeof(float));
+    for (i = 0; i < centroids_size; i++)
+    {
+        (*centroids)[i] = centroids_global[i];
+    }
+
 #ifdef USE_SPINLOCK
     pthread_spin_destroy(&spinlock);
 #else
     pthread_mutex_destroy(&mutex1);
 #endif
     pthread_barrier_destroy(&centroid_update_barrier);
+    pthread_barrier_destroy(&delta_check_barrier);
     /*Printing final centroids:*/
     for (i = 0; i < K; i++)
     {

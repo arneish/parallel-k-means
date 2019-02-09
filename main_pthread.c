@@ -32,7 +32,7 @@ int main(int argc, char const *argv[])
 	int* data_points;		//data points (input)
 	int* cluster_points;	//clustered data points (to be computed)
 	float* centroids;			//centroids of each iteration (to be computed)
-	int num_iterations=100;    //no of iterations performed by algo (to be computed)
+	int num_iterations;    //no of iterations performed by algo (to be computed)
 	//---------------------------------------------------------------------
 
 	double start_time, end_time;
