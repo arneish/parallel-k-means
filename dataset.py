@@ -3,9 +3,12 @@ from matplotlib import pyplot
 from mpl_toolkits.mplot3d import Axes3D
 import random, numpy as np
 from sklearn.utils import shuffle
+import sys
 
 num_range = 700             # base range of data point cordinates
-total_points = 1000000          # total number of data points
+total_points = int(sys.argv[1]) 
+print("total points:", total_points)
+         # total number of data points
 noise = 25                  # data points that are not generated near a blob_center
 K = 4                       # number of blobs
 N = total_points - noise    # data points to be generated near blob_center
@@ -59,9 +62,10 @@ X = shuffle(X)
 filename = "dataset_" + str(total_points) + "_" + str(K) + ".txt"
 np.savetxt(filename, X, fmt="%d", header=str(total_points), comments='')
 
+print ("finished")
 # Shows 3D plot for visualization 
-fig = pyplot.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.scatter(X[:,0],X[:,1],X[:,2])
-pyplot.show()
+# fig = pyplot.figure()
+# ax = fig.add_subplot(111, projection='3d')
+# ax.scatter(X[:,0],X[:,1],X[:,2])
+# pyplot.show()
 
