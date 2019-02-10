@@ -69,6 +69,12 @@ int main(int argc, char const *argv[])
 
 	computation_time = end_time - start_time;
 	printf("Time Taken: %lf \n", computation_time);
+
+	char *time_file_pthread = "time_openmp.txt";
+	FILE *fout = fopen(time_file_pthread, "a");
+	fprintf(fout, "%f\n", computation_time);
+	fclose(fout);
+	
 	
 	return 0;
 }
