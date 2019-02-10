@@ -59,6 +59,7 @@ int main(int argc, char const *argv[])
 	// 		TODO -- You must implement this function
 	// 	*****************************************************
 	// */
+	printf("hello!\n");
 	kmeans_pthread(num_threads, N, K, data_points, &cluster_points, &centroids, &num_iterations);
 	end_time = omp_get_wtime();
 

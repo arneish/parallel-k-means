@@ -37,7 +37,7 @@ void kmeans_sequential(int N,
 					int K,
 					int* data_points,
 					int** data_point_cluster,
-					int** centroids,
+					float** centroids,
 					int* num_iterations
 					);
 
