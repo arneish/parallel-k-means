@@ -4,4 +4,3 @@
 3. A detailed discussion on the parallelization strategy is present in a contained report.<br>
 4. The report also contains the observed performance of the project on different datasets.<br>
 5. The speedup and efficiency plots obtained are in accordance with Amdahl's speedup law. 
-
